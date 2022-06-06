@@ -1,0 +1,5 @@
+%{
+  "dns": {:hex, :dns, "2.3.0", "3e750cf3e229898628a091fa7dca29524294db2962d0fc15696ac3a5cfff2315", [:mix], [{:socket, "~> 0.3.13", [hex: :socket, repo: "hexpm", optional: false]}], "hexpm", "f3f1074409b4ecf6f93379a49fb0aef30a898f3093ea22b5c64a85e9f99ca6f8"},
+  "mdns": {:hex, :mdns, "1.0.12", "b5437fb940dea64c867832dd99255da981a4b98404e586e53cc332a973c209f1", [:mix], [{:dns, "~> 2.2", [hex: :dns, repo: "hexpm", optional: false]}], "hexpm", "643c9d1ca6f408a7eb13cf693719814c93d18f4ec96f97bc23d25aa28f4d95fa"},
+  "socket": {:hex, :socket, "0.3.13", "98a2ab20ce17f95fb512c5cadddba32b57273e0d2dba2d2e5f976c5969d0c632", [:mix], [], "hexpm", "f82ea9833ef49dde272e6568ab8aac657a636acb4cf44a7de8a935acb8957c2e"},
+}
