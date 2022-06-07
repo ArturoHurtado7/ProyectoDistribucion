@@ -15,6 +15,7 @@ defmodule Front do
         :goodbye => "\nGood bye!",
     }
 
+    # ------------------------------- Menus Messages -------------------------------
     @general_commands %{
         "3" => "Add a ride service",
         "4" => "Show the ride services",
