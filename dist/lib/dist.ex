@@ -10,14 +10,17 @@ defmodule Dist do
   @nodes :nodes_up
   @domain :domain_node
   @connected :connected_nodes
+  @id :machine_id
 
   @host "machine"
   @domain_name "local"
   @limit 255
+  @node_limit 10
 
   def start do
     # ---------------------------------- Agents ----------------------------------
     # start_agents
+    Agent.start_link(fn -> 0 end, name: @id)
     Agent.start_link(fn -> %{} end, name: @nodes)
     Agent.start_link(fn -> [] end, name: @connected)
     Agent.start_link(fn -> new_domain_name(@host, @domain_name, 0, false) end, name: @domain)
@@ -41,7 +44,7 @@ defmodule Dist do
 
     # ---------------------------------- Client ----------------------------------
     # Start the master client
-    master = "master@#{get_domain()}" |> String.to_atom()
+    master = "master#{get_id()}@#{get_domain()}" |> String.to_atom()
     Node.start(master)
   end
 
@@ -49,12 +52,14 @@ defmodule Dist do
   def get_domain do Agent.get(@domain, &(&1)) end
   def get_connected do Agent.get(@connected, &(&1)) end
   def get_nodes do Agent.get(@nodes, &(&1)) end
+  def get_id do Agent.get(@id, &(&1)) end
   def update_connected(connected) do Agent.update(@connected, fn _ -> connected end) end
   def update_nodes(nodes) do Agent.update(@nodes, fn _ -> nodes end) end
+  def update_id(id) do Agent.update(@id, fn _ -> id end) end
 
   # ---------------------------------- Nodes ----------------------------------
   # get the node name 
-  def node_name(nodes) do node_name(nodes, "node", 0, true) end
+  def node_name(nodes) do node_name(nodes, "node", (get_id()*@node_limit)-@node_limit, true) end
   def node_name(_nodes, name, index, false) do String.to_atom("#{name}#{index}") end
   def node_name(nodes, name, index, true) do
     key = String.to_atom("#{name}#{index+1}")
@@ -62,19 +67,22 @@ defmodule Dist do
     node_name(nodes, name, index+1, has_key)
   end
 
-  # Dist.start
-  # Dist.add("team", [])
-  # Dist.get_nodes()
+  # add a node to the connected nodes list
   def add(cookie, functions) do
     nodes = get_nodes()
-    key = node_name(nodes)
-    create_node(key, cookie)
-    host = "#{key}@#{get_domain()}" |> String.to_atom()
-    value = %{cookie: cookie, functions: functions, host: host}
-    nodes |> Map.put_new(key, value) |> update_nodes()
+    if map_size(nodes) < @node_limit do
+      key = node_name(nodes)
+      create_node(key, cookie)
+      host = "#{key}@#{get_domain()}" |> String.to_atom()
+      value = %{cookie: cookie, functions: functions, host: host}
+      nodes |> Map.put_new(key, value) |> update_nodes()
+      {:ok, "\nNode: #{host} has been added"}
+    else
+      {:error, "The number of nodes is limited to #{@node_limit}"}
+    end
   end
 
-  # get domains of all distributed nodes
+  # get the local distributed domains in LAN
   def get_domains(name, domain) do get_domain_names(name, domain, 0, [], true) end
   def get_domain_names(_name, _domain, _index, domains, false) do domains end
   def get_domain_names(name, domain, index, domains, true) do
@@ -87,6 +95,7 @@ defmodule Dist do
   # returns a new available domain name
   def new_domain_name(name, domain, index, true) do "#{name}#{index}.#{domain}" end 
   def new_domain_name(name, domain, index, false) do
+    update_id(index+1)
     dns = !dns_hostname("#{name}#{index+1}.#{domain}")
     new_domain_name(name, domain, index+1, dns)
   end
@@ -154,3 +163,16 @@ end
 # :net_adm.localhost
 # :net_adm.dns_hostname(:localhost)
 # :net_adm.dns_hostname(:"dist.local")
+
+# iex.bat --sname alex@localhost -S mix
+# iex.bat --sname kate@localhost -S mix
+# Chat.Application.start()
+# Chat.send_message(:kate@localhost, "hi")
+
+# iex.bat --name kate@machine1.local -S mix
+# Chat.send_message(:"alex@machine2.local", "hi")
+
+# cd ".\dist\lib\"
+# elixirc ".\mynode.ex"
+# nl([:"node1@machine1.local"], MyNode)
+# Node.spawn_link(:"node1@machine1.local", fn -> MyNode.nodes end)

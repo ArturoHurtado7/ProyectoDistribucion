@@ -8,51 +8,37 @@ defmodule Front do
 
     # ---------------------------------- Messages ----------------------------------
 
-    @standard_messages %{
-        :welcome => "\n\nWelcome to the Distribution node Agregator\n",
-        :input => "\nSelect an option from the following statements:\n",
-        :fill_info => "\nPlease fill the following information:\n",
+    @messages %{
+        :welcome => "\n\nWelcome to the Distribution node Agregator",
+        :input => "\nSelect an option:\n",
+        :fill => "\nPlease fill the following information:\n",
         :goodbye => "\nGood bye!",
     }
 
-    # ------------------------------- Menus Messages -------------------------------
-    @general_commands %{
-        "3" => "Add a ride service",
-        "4" => "Show the ride services",
-        "5" => "Remove a ride service",
-        "6" => "Drop ride services",
-        "7" => "Start requests",
-        "8" => "Stop program",
-    }
-
-    @request_commands %{
-        "1" => "Show active requests",
-        "2" => "Choose a request to attend",
-        "3" => "Stop requests and come back",
-    }
-
-    @error_messages %{
+    @error %{
         :bad_input => "Bad input \n",
-        :service_name => "Service name can't only be spaces.\n",
+        :spaces => "can't be spaces.\n",
         :service_running => "There aren't running services.\n",
         :request_running => "There aren't running requests or there's an active service running.\n", 
     }
 
-    @success_messages %{
-        :service_remove => "The services have been droped.\n",
-        :request_start => "The requests have been started.\n",
+    # ---------------------------------- Commands ----------------------------------
+    @menu %{
+        "1" => "Add a Node",
+        "2" => "Show the Local Nodes",
+        "3" => "Start requests",
+        "4" => "Stop program",
     }
-
 
     # ---------------------------------- Main ----------------------------------
 
     @doc """
         Program start point
     """
-    def main() do
-        IO.puts(@standard_messages[:welcome])
+    def start() do
+        IO.puts(@messages[:welcome])
         Dist.start()
-        menu(@general_commands)
+        menu(@menu)
     end
 
 
@@ -60,19 +46,15 @@ defmodule Front do
 
     # user menus
     defp menu(menu) do
-        Process.sleep(500)
-        IO.puts(@standard_messages[:input])
-        menu |> Enum.map(fn({command, description}) -> 
-            IO.puts(" > #{command}. -> #{description}") 
-        end)
+        Process.sleep(200)
+        IO.puts(@messages[:input])
+        menu |> Enum.map(fn({command, description}) -> IO.puts(" > #{command}. -> #{description}") end)
         option = get_command()
         cond do
-            menu == @general_commands and option >= 1 and option <= 8 -> 
-                execute_command(option)
-            menu == @request_commands and option >= 1 and option <= 3 -> 
-                execute_request_commands(option)
+            menu == @menu and option >= 1 and option <= map_size(@menu) -> 
+                execute(option)
             true -> 
-                IO.puts(@error_messages[:bad_input])
+                IO.puts(@error[:bad_input])
                 menu(menu)
         end
     end
@@ -90,163 +72,75 @@ defmodule Front do
     end
 
     # execute input command
-    defp execute_command(command) do
-        IO.puts("-------- #{@general_commands[Integer.to_string(command)]} --------")
+    defp execute(command) do
+        IO.puts("-------- #{@menu[Integer.to_string(command)]} --------")
         case command do
-            3 -> add_service()
-            4 -> show_services()
-            5 -> remove_service()
-            6 -> remove_services()
-            7 -> start_requests()
-            8 -> stop_program()
-        end
-    end
-
-    # execute requests commands
-    defp execute_request_commands(command) do
-        IO.puts("-------- #{@request_commands[Integer.to_string(command)]} --------")
-        case command do
-            1 -> show_requests()
-            2 -> pick_request()
-            3 -> stop_request()
+            1 -> add_node()
+            2 -> show_local_nodes()
+            3 -> send_messages()
+            4 -> stop_program()
         end
     end
 
     # ---------------------------------- Services ----------------------------------
 
     # Add a new service
-    defp add_service() do
-        IO.puts(@standard_messages[:fill_info])
-        name = IO.gets("Service name: ") |> String.replace(~r"\s+", "")
-        channel = IO.gets("Communication channel: ") |> String.replace(~r"\s+", "")
-        case name do
-            "" -> 
-                IO.inspect({:error, @error_messages[:service_name]})
-            _ -> 
-                {_status, message} = Service.add(String.to_atom(name), channel)
+    defp add_node() do
+        IO.puts(@messages[:fill])
+        cookie = IO.gets("Cookie of Node: ") |> String.replace(~r"\s+", "")
+        add_funct = IO.gets("want to add functions? [y/n]: ") |> String.replace(~r"\s+", "")
+        functions = cond do
+            Enum.member?(["yes", "y", "YES", "Y", "Yes"], add_funct) -> get_functions([])
+            true -> []
+        end
+        cond do
+            cookie == "" -> IO.inspect({:error, @error[:spaces]})
+            true -> 
+                {_status, message} = Dist.add(cookie, functions)
                 IO.puts(message)
         end
-        menu(@general_commands)
+        menu(@menu)
+    end
+
+    defp get_functions(functions) do
+        key = IO.gets("Function key: ") |> String.replace(~r"\s+", "")
+        message = IO.gets("Function message: ") |> String.replace(~r"\s+", "")
+        new_funct = cond do
+            key == "" -> 
+                IO.inspect({:error, @error[:spaces]})
+                functions
+            true -> 
+                [{key, message} | functions]
+        end
+        add_funct = IO.gets("want to add another function? [y/n]: ") |> String.replace(~r"\s+", "")
+        cond do
+            Enum.member?(["yes", "y", "YES", "Y", "Yes"], add_funct) -> get_functions(new_funct)
+            true -> new_funct
+        end
     end
 
     # print all the existing services running
-    defp show_services() do
-        services = Service.get_services()
-        case length(services) > 0 do 
+    defp show_local_nodes() do
+        local_nodes = Dist.get_nodes()
+        case map_size(local_nodes) > 0 do 
             true -> 
-                Enum.map(services, fn service -> 
-                    service |> IO.inspect() 
-                end)
+                for {k, v} <- local_nodes do
+                    IO.puts("#{k} --> ")
+                    IO.inspect(v)
+                end
             false ->
-                IO.puts(@error_messages[:service_running])
+                IO.puts(@error[:service_running])
         end
-        menu(@general_commands)
+        menu(@menu)
     end
 
-    # remove one service
-    defp remove_service() do
-        IO.puts(@standard_messages[:input])
-        Service.get_services() |> services_print(1, %{}) |> rm_service()
-        menu(@general_commands)
-    end
-
-    # List and print services, return map of {id,sevice} tuple
-    defp services_print([], _, map) do map end
-    defp services_print([h|t], i, map) do 
-        key = Map.keys(h) |> List.first()
-        IO.puts("#{i}. -> #{key}")
-        services_print(t, i+1, Map.put_new(map, i, key))
-    end
-
-    # validate if the service exist and remove
-    defp rm_service(services) when services == %{} do IO.puts(@error_messages[:service_running]) end
-    defp rm_service(services) do 
-        input = get_command()
-        cond do
-            services[input] != nil -> 
-                {_status, message} = services[input] |> Service.drop()
-                IO.puts(message)
-            true -> 
-                IO.puts(@error_messages[:bad_input])
-        end
-    end
-
-    # remove all services
-    defp remove_services() do
-        services = Service.get_services()
-        cond do
-            length(services) > 0 -> 
-                Service.drop()
-                IO.puts(@success_messages[:service_remove])
-            true -> 
-                IO.puts(@error_messages[:service_running])
-        end
-        menu(@general_commands)
-    end
-
-
-    # ---------------------------------- Requests ----------------------------------
-
-    # Start requests
-    defp start_requests() do
-        services = Service.get_services()
-        cond do
-            length(services) > 0 -> 
-                Request.start_requests()
-                IO.puts(@success_messages[:request_start])
-                menu(@request_commands)
-            true -> 
-                IO.puts(@error_messages[:service_running])
-                menu(@general_commands)
-        end
-    end
-
-    # Show requests
-    defp show_requests() do
-        requests = Request.get_requests()
-        cond do
-            requests == %{} ->
-                IO.puts(@error_messages[:request_running])
-            requests != %{} ->
-                Enum.map(requests, fn {key, request} -> 
-                    IO.puts("id => #{key}") 
-                    request[:request] |> IO.inspect() 
-                end) 
-        end
-        menu(@request_commands)
-    end
-
-    # pick one request in the list
-    defp pick_request() do
-        requests = Request.get_requests()
-        cond do
-            requests == %{} ->
-                IO.puts(@error_messages[:request_running])
-            requests != %{} ->
-                IO.puts(@standard_messages[:input])
-                requests |> IO.inspect()
-                {_status, message} = get_command() |> Request.pick_request()
-                IO.puts(message)
-        end
-        menu(@request_commands)
-    end
-
-    defp stop_request() do
-        requests = Request.get_requests()
-        cond do
-            requests == %{} ->
-                IO.puts(@error_messages[:request_running])
-                menu(@request_commands)
-            requests != %{} ->
-                Request.stop_requests()
-                menu(@general_commands)
-        end
+    defp send_messages() do
+        IO.puts(@messages[:fill])
     end
 
     defp stop_program() do
-        Service.stop_service()
-        Request.stop_requests()
-        IO.puts(@standard_messages[:goodbye])
+        Dist.stop()
+        IO.puts(@messages[:goodbye])
     end
 
 end
