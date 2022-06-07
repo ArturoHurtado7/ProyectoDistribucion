@@ -1,4 +1,10 @@
 defmodule Dist do
+  @moduledoc """
+    Distribution module.
+
+    Author: Jaime Arturo Hurtado Romero.
+    Student_code: 201212121.
+  """
 
   # ---------------------------------- Agents ID ----------------------------------
   @nodes :nodes_up
@@ -92,15 +98,16 @@ defmodule Dist do
   end
 
   # Create new node in different domain
+  # iex.bat --name node1@machine1.local --cookie team
   def create_node(node_name, cookie) do
     domain_name = get_domain()
     spawn(fn -> 
-      System.cmd("iex", ["--name", "#{node_name}@#{domain_name}", "--cookie", "#{cookie}"]) 
+      System.cmd("iex", ["--name", "#{node_name}@#{domain_name}", "--cookie", "#{cookie}", "-S", "mix"]) 
     end)
   end
 
-  # Dist.broadcast("team")
-  def broadcast(cookie) do
+  # Dist.discover("team")
+  def discover(cookie) do
     update_connected([])
     cookie |> String.to_atom() |> Node.set_cookie()
     get_domains(@host, @domain_name) |>

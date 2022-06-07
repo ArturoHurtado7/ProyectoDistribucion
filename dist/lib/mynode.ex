@@ -10,4 +10,9 @@ defmodule MyNode do
   def nodes do
     IO.inspect(Node.list)
   end
+
+  def get_self do
+    IO.inspect(self())
+  end
+
 end
