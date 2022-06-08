@@ -18,15 +18,15 @@ defmodule Front do
     @error %{
         :bad_input => "Bad input \n",
         :spaces => "can't be spaces.\n",
-        :service_running => "There aren't running services.\n",
-        :request_running => "There aren't running requests or there's an active service running.\n", 
+        :no_items => "There aren't items.\n",
+        :empty => "empty map or list.\n",
     }
 
     # ---------------------------------- Commands ----------------------------------
     @menu %{
         "1" => "Add a Node",
         "2" => "Show the Local Nodes",
-        "3" => "Start requests",
+        "3" => "Send a Message",
         "4" => "Stop program",
     }
 
@@ -38,6 +38,7 @@ defmodule Front do
     def start() do
         IO.puts(@messages[:welcome])
         Dist.start()
+        Chat.Application.start()
         menu(@menu)
     end
 
@@ -46,7 +47,7 @@ defmodule Front do
 
     # user menus
     defp menu(menu) do
-        Process.sleep(200)
+        Process.sleep(500)
         IO.puts(@messages[:input])
         menu |> Enum.map(fn({command, description}) -> IO.puts(" > #{command}. -> #{description}") end)
         option = get_command()
@@ -88,11 +89,7 @@ defmodule Front do
     defp add_node() do
         IO.puts(@messages[:fill])
         cookie = IO.gets("Cookie of Node: ") |> String.replace(~r"\s+", "")
-        add_funct = IO.gets("want to add functions? [y/n]: ") |> String.replace(~r"\s+", "")
-        functions = cond do
-            Enum.member?(["yes", "y", "YES", "Y", "Yes"], add_funct) -> get_functions([])
-            true -> []
-        end
+        functions = get_functions([])
         cond do
             cookie == "" -> IO.inspect({:error, @error[:spaces]})
             true -> 
@@ -129,13 +126,67 @@ defmodule Front do
                     IO.inspect(v)
                 end
             false ->
-                IO.puts(@error[:service_running])
+                IO.puts(@error[:no_items])
         end
         menu(@menu)
     end
 
     defp send_messages() do
-        IO.puts(@messages[:fill])
+        IO.puts(@messages[:input])
+        IO.puts("Select the local node to send the message from: ")
+        Dist.get_nodes() |> Map.keys() |> nodes_print(1, %{}) |> sd_message()
+        menu(@menu)
+    end
+
+    # List and print services, return map of {id,sevice} tuple
+    defp nodes_print([], _, map) do map end
+    defp nodes_print([key|t], i, map) do 
+        IO.puts("#{i}. -> #{key}")
+        nodes_print(t, i+1, Map.put_new(map, i, key))
+    end
+
+    defp sd_message(options) when options == %{} do IO.puts(@error[:empty]) end
+    defp sd_message(options) do 
+        input = get_command()
+        IO.puts("Searching the connected nodes ...\n")
+        IO.puts("this might take a while ...\n")
+        cond do
+            options[input] != nil -> 
+                node = Dist.get_nodes() |> Map.get(options[input])
+                cookie = node |> Map.get(:cookie)
+                cookie |> String.to_atom() |> Node.set_cookie()
+                host = node |> Map.get(:host)
+                cookie |> Dist.discover()
+                Process.sleep(200)
+                IO.puts("Connected nodes to recieve the message: ")
+                cookie |>  Dist.discover() |> 
+                    Enum.filter(fn(x) -> x != host end) |> 
+                    nodes_print(1, %{}) |> 
+                    message_send()
+            true -> 
+                IO.puts(@error[:bad_input])
+        end
+    end
+
+    defp message_send(receivers) do
+        id = get_command()
+        cond do
+            receivers[id] != nil -> 
+                Node.connect(receivers[id])
+                Node.spawn_link(receivers[id], fn -> 
+                    IO.puts("Message sent to #{receivers[id]}")
+                    Chat.Application.start() 
+                    Chat.send_message(receivers[id], "keys")
+                end)
+                new_message = get_command()
+                Node.spawn_link(receivers[id], fn -> 
+                    Chat.Application.start() 
+                    Chat.send_message(receivers[id], new_message)
+                end)
+                get_command()
+            true -> 
+                IO.puts(@error[:bad_input])
+        end
     end
 
     defp stop_program() do

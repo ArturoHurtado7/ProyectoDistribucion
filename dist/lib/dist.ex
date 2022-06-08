@@ -14,7 +14,7 @@ defmodule Dist do
 
   @host "machine"
   @domain_name "local"
-  @limit 255
+  @limit 100
   @node_limit 10
 
   def start do
@@ -75,11 +75,18 @@ defmodule Dist do
       create_node(key, cookie)
       host = "#{key}@#{get_domain()}" |> String.to_atom()
       value = %{cookie: cookie, functions: functions, host: host}
+      File.write!("#{key}.txt", get_content(functions))
       nodes |> Map.put_new(key, value) |> update_nodes()
       {:ok, "\nNode: #{host} has been added"}
     else
       {:error, "The number of nodes is limited to #{@node_limit}"}
     end
+  end
+
+  def get_content(functions) do
+    keys = functions |> List.foldl("keys:", fn {x,_y}, acc -> "#{acc}#{x}," end) |> String.slice(0..-2)
+    content = functions |> List.foldl("", fn {x,y}, acc -> "#{acc}#{x}:#{y}\n" end)
+    "#{keys}\n#{content}"
   end
 
   # get the local distributed domains in LAN
@@ -111,7 +118,7 @@ defmodule Dist do
   def create_node(node_name, cookie) do
     domain_name = get_domain()
     spawn(fn -> 
-      System.cmd("iex", ["--name", "#{node_name}@#{domain_name}", "--cookie", "#{cookie}", "-S", "mix"]) 
+      System.cmd("iex", ["--name", "#{node_name}@#{domain_name}", "--cookie", "#{cookie}", "-S", "mix", "run", "-e", "Chat.Application.start()"]) 
     end)
   end
 
@@ -139,40 +146,4 @@ defmodule Dist do
     Agent.stop(@domain)
   end
 
-
-  # https://medium.com/blackode/deploying-elixir-modules-different-nodes-6c9cc17d3b97
-
-
-  #spawn(fn -> System.cmd("iex.bat", []) end)
-  #File.cwd!
-  #File.mkdir!()
-
-  #File.ls!
-  #current_node = "Node1"
-  #"#{File.cwd!}/#{current_node}" |> File.mkdir!
-  #"#{File.cwd!}/#{current_node}" |> File.rmdir!
-  #node_path = Enum.join([File.cwd!, "/Node1"], "")
-  #node_path |> File.mkdir!
-  #node_path |> File.rmdir!
-
-  #cd!(node_path, spawn(fn -> System.cmd("iex.bat", []) end))
-
 end
-
-# :net_adm.names
-# :net_adm.localhost
-# :net_adm.dns_hostname(:localhost)
-# :net_adm.dns_hostname(:"dist.local")
-
-# iex.bat --sname alex@localhost -S mix
-# iex.bat --sname kate@localhost -S mix
-# Chat.Application.start()
-# Chat.send_message(:kate@localhost, "hi")
-
-# iex.bat --name kate@machine1.local -S mix
-# Chat.send_message(:"alex@machine2.local", "hi")
-
-# cd ".\dist\lib\"
-# elixirc ".\mynode.ex"
-# nl([:"node1@machine1.local"], MyNode)
-# Node.spawn_link(:"node1@machine1.local", fn -> MyNode.nodes end)

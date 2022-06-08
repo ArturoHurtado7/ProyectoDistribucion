@@ -1,0 +1,40 @@
+# https://medium.com/blackode/deploying-elixir-modules-different-nodes-6c9cc17d3b97
+
+#spawn(fn -> System.cmd("iex.bat", []) end)
+#File.cwd!
+#File.mkdir!()
+
+#File.ls!
+#current_node = "Node1"
+#"#{File.cwd!}/#{current_node}" |> File.mkdir!
+#"#{File.cwd!}/#{current_node}" |> File.rmdir!
+#node_path = Enum.join([File.cwd!, "/Node1"], "")
+#node_path |> File.mkdir!
+#node_path |> File.rmdir!
+
+#cd!(node_path, spawn(fn -> System.cmd("iex.bat", []) end))
+
+
+# :net_adm.names
+# :net_adm.localhost
+# :net_adm.dns_hostname(:localhost)
+# :net_adm.dns_hostname(:"dist.local")
+
+# iex.bat --name node1@machine1.local --cookie team -S mix
+# iex.bat --name node1@machine1.local --cookie team -S mix run -e 'Chat.Application.start()'
+# iex.bat -S mix run -e "IO.puts(:ok)"
+# iex.bat --name node2@machine1.local --cookie team -S mix
+# Chat.Application.start()
+# Chat.send_message(:"node1@machine1.local", "hi")
+# Node.spawn_link(:"node1@machine1.local", fn -> Chat.Application.start(:ok, :ok) end)
+
+# iex.bat --name kate@machine1.local -S mix
+# Chat.send_message(:"alex@machine2.local", "hi")
+
+# cd ".\dist\lib\"
+# elixirc ".\mynode.ex"
+# nl([:"node1@machine1.local"], MyNode)
+# Node.spawn_link(:"node1@machine1.local", fn -> MyNode.nodes end)
+# Node.spawn_link(:"node1@machine1.local", fn -> Dist.get_nodes end)
+# Node.spawn_link(:"node1@machine1.local", fn ->  Chat.Application.start() end)
+

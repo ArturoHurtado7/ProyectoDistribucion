@@ -8,7 +8,7 @@ defmodule Chat.Application do
 
   use Application
 
-  def start(_opt, _strategy) do
+  def start() do
     children = [{Task.Supervisor, name: Chat.TaskSupervisor}]
     opts = [strategy: :one_for_one, name: Chat.Supervisor]
     Supervisor.start_link(children, opts)
